@@ -15,5 +15,4 @@ router = APIRouter(
 @router.patch("/{username}")
 def recover_password(username:str,updatePassword:UpdatePassword,db:Session = Depends(get_db)):
     support = passrecovere.recovere_password(username,updatePassword,db)
-    print("Esto es support",support)
     return support

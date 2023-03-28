@@ -58,7 +58,9 @@ class UpdateAdmin(BaseModel):
 
 class UpdatePassword(BaseModel):
     password:str
-    
+
+class UpdateMail(BaseModel):
+    mail:str
 
 
 class Login(BaseModel):
