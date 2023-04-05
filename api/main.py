@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 import uvicorn
-from app.routers import admin,user,auth,passrecovere,recovere_mail
+from app.routers import admin,user,auth,passrecovere,recovere_mail,login
 from app.db.database import Base,engine
 import tracemalloc
 tracemalloc.start()
@@ -17,6 +17,7 @@ app.include_router(user.router)
 app.include_router(auth.router)
 app.include_router(passrecovere.router)
 app.include_router(recovere_mail.router)
+app.include_router(login.router)
 
 
 if(__name__ == '__main__'):

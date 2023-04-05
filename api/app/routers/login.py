@@ -7,13 +7,14 @@ from app.repository import auth
 from fastapi.security import OAuth2PasswordRequestForm
 
 
+
 router = APIRouter(
-    prefix="/auth",
-    tags=["Auth"]
+    prefix="/login",
+    tags=["Login"]
 )
 
-@router.post("/token",status_code=status.HTTP_200_OK)
-def login(login:OAuth2PasswordRequestForm = Depends(),db:Session = Depends(get_db)):
-    support = auth.auth_user(login,db)
-    print(support)
+
+@router.post("/",status_code=status.HTTP_200_OK)
+def login(User:Login,db:Session = Depends(get_db)):
+    support = auth.login_users(User,db)
     return support

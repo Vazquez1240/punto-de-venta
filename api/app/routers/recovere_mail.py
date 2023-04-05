@@ -1,16 +1,20 @@
 from fastapi import APIRouter,Depends, status
 from sqlalchemy.orm import Session
 from app.db.database import get_db
-from typing import List
 from app.schemas import UpdateMail
-from app.repository import passrecovere
-from fastapi.security import OAuth2PasswordRequestForm
+from app.db import models
+from app.repository import auth
+from app.repository import recovere_mail
+
 
 router = APIRouter(
     prefix="/recoverer-email",
     tags=["Recoverer-Email"]
 )
 
-@router.patch("/{username}/{password}")
+@router.patch("/{username}")
 def recover_mail(username:str, password:str,updateMail:UpdateMail,db:Session = Depends(get_db)):
-    return {"Esto es":f"{username}{password}"}
+    support = auth.auth_email(username,password,db)
+    if(support):
+        support = recovere_mail.recovere_mail(username,updateMail,db)
+        return support

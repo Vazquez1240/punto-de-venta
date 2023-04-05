@@ -41,6 +41,6 @@ def recovere_password(username,updatePassword ,db:Session):
     
     support_user.update(password.dict(exclude_unset=True))
     
-    print(support_user.mail)
+    print(support_user)
     db.commit()
     return {"Success":"password actualizada correctamente"} 

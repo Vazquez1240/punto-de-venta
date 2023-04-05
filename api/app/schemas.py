@@ -10,7 +10,7 @@ class User(BaseModel):
     password:str
     number_phone:str
     mail:str
-    rango:str
+    rango:str = 'user'
     creation:datetime = datetime.now()
 
 class SuperAdmin(BaseModel):
@@ -34,7 +34,6 @@ class ShowUser(BaseModel):
 
 class ShowAdmin(BaseModel):
     name:str
-    password:str
     surname:str
     username:str
     mail:str
