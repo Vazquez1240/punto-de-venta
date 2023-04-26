@@ -3,19 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <link rel="stylesheet" href="{{ url_for('static', filename='inicio.css') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Welcome {{username}}</title>
 </head>
 <body>
-    <div>
+
+    <!-- HTML -->
+    <button class="menu-btn">Menu</button>
+
+    <div class="menu">
         <ul>
-            <li>Inicio</li>
-            <li>Ventas</li>
-            <li>Perfil</li>
-            <li><a href="/close-session">Cerrar Sesion</a></li>
-            <li></li>
-            
+            <li><a href="#">Inicio</a></li>
+            <li><a href="#">Productos</a></li>
+            <li><a href="#">Contacto</a></li>
         </ul>
     </div>
+
+
+	<script type="text/javascript" src="{{ url_for('static', filename='inicio.js') }}"></script>
+
+	
+    
+    
+
+
+    <!--<nav>
+        <ul>
+            <li><a href="#">Inicio</a></li>
+            <li><a href="#">Ventas</a></li>
+            <li><a href="#">Perfil</a></li>
+            <li><a href="/logout/{{token}}/{{username}}">Cerrar Sesion</a></li>
+        </ul>
+    </nav>
+    <div style="margin-left: 250px;">
+        <h1>Título de la página</h1>
+        <p>Contenido de la página</p>
+      </div>
+    -->
 </body>
 </html>
