@@ -1,34 +1,140 @@
-from fastapi import FastAPI
-import uvicorn
-from app.routers import admin,user,auth,passrecovere,recovere_mail,logout,view_token
-from app.db.database import Base,engine
-import tracemalloc
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import List, Dict, Any, Optional
+import uvicorn
+from datetime import datetime
+import json
 
+app = FastAPI(
+    title="Google Sheets API",
+    description="API para recibir y almacenar datos de Google Sheets",
+    version="1.0.0"
+)
 
-tracemalloc.start()
-
-app = FastAPI()
-
+# Configuración de CORS
 origins = [
     "http://localhost",
     "http://localhost:8080",
-    "http://127.0.0.1:5500"
+    "http://127.0.0.1:5500",
+    "*"  # Para permitir desde Google Apps Script
 ]
 
-def create_tables():
-    Base.metadata.create_all(bind=engine)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-create_tables()
+# Cache en memoria para almacenar los datos
+data_cache: Dict[str, Any] = {
+    "last_updated": None,
+    "data": [],
+    "total_records": 0
+}
 
-app.include_router(admin.router)
-app.include_router(user.router)
-app.include_router(auth.router)
-app.include_router(passrecovere.router)
-app.include_router(recovere_mail.router)
-app.include_router(logout.router)
-app.include_router(view_token.router)
+# Modelos Pydantic
+class SheetData(BaseModel):
+    data: List[Dict[str, Any]]
 
+class CacheResponse(BaseModel):
+    last_updated: Optional[str]
+    total_records: int
+    data: List[Dict[str, Any]]
 
-#if(__name__ == '__main__'):
-#    uvicorn.run("main:app",port=8000,reload=True)
+# Endpoint para recibir datos del Google Sheet
+@app.post("/api/sheet-data", response_model=dict)
+async def receive_sheet_data(payload: SheetData):
+    """
+    Endpoint para recibir datos del Google Sheet.
+    Guarda los datos en caché en memoria.
+    """
+    try:
+        # Actualizar el cache
+        data_cache["data"].extend(payload.data)
+        data_cache["last_updated"] = datetime.now().isoformat()
+        data_cache["total_records"] = len(data_cache["data"])
+        
+        return {
+            "status": "success",
+            "message": f"Recibidos {len(payload.data)} registros",
+            "total_records": data_cache["total_records"],
+            "timestamp": data_cache["last_updated"]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error procesando datos: {str(e)}")
+
+# Endpoint para obtener todos los datos del cache
+@app.get("/api/sheet-data", response_model=CacheResponse)
+async def get_cached_data():
+    """
+    Obtiene todos los datos almacenados en caché.
+    """
+    return CacheResponse(
+        last_updated=data_cache["last_updated"],
+        total_records=data_cache["total_records"],
+        data=data_cache["data"]
+    )
+
+# Endpoint para limpiar el cache
+@app.delete("/api/sheet-data")
+async def clear_cache():
+    """
+    Limpia todos los datos del caché.
+    """
+    data_cache["data"].clear()
+    data_cache["last_updated"] = datetime.now().isoformat()
+    data_cache["total_records"] = 0
+    
+    return {
+        "status": "success",
+        "message": "Cache limpiado exitosamente",
+        "timestamp": data_cache["last_updated"]
+    }
+
+# Endpoint para obtener estadísticas del cache
+@app.get("/api/stats")
+async def get_stats():
+    """
+    Obtiene estadísticas del caché de datos.
+    """
+    return {
+        "total_records": data_cache["total_records"],
+        "last_updated": data_cache["last_updated"],
+        "cache_size_mb": len(json.dumps(data_cache["data"])) / (1024 * 1024) if data_cache["data"] else 0
+    }
+
+# Endpoint de salud
+@app.get("/health")
+async def health_check():
+    """
+    Endpoint de salud para verificar que la API está funcionando.
+    """
+    return {
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "service": "Google Sheets API"
+    }
+
+# Endpoint raíz
+@app.get("/")
+async def root():
+    """
+    Endpoint raíz con información básica de la API.
+    """
+    return {
+        "message": "Google Sheets API",
+        "version": "1.0.0",
+        "endpoints": {
+            "POST /api/sheet-data": "Recibir datos del Google Sheet",
+            "GET /api/sheet-data": "Obtener datos del caché",
+            "DELETE /api/sheet-data": "Limpiar caché",
+            "GET /api/stats": "Estadísticas del caché",
+            "GET /health": "Estado de la API"
+        }
+    }
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
