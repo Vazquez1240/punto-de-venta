@@ -1,10 +1,12 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Annotated
 import uvicorn
 from datetime import datetime
 import json
+import os
 
 app = FastAPI(
     title="Google Sheets API",
@@ -28,12 +30,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Configuración de autenticación
+API_TOKEN = os.getenv("API_TOKEN", "mi_token_secreto_123")  # Token por defecto para desarrollo
+security = HTTPBearer()
+
 # Cache en memoria para almacenar los datos
 data_cache: Dict[str, Any] = {
     "last_updated": None,
     "data": [],
     "total_records": 0
 }
+
+# Función para validar el token
+async def validate_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """
+    Valida el token Bearer enviado en el header Authorization.
+    """
+    if credentials.credentials != API_TOKEN:
+        raise HTTPException(
+            status_code=401,
+            detail="Token inválido",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return credentials.credentials
 
 # Modelos Pydantic
 class SheetData(BaseModel):
@@ -46,7 +65,7 @@ class CacheResponse(BaseModel):
 
 # Endpoint para recibir datos del Google Sheet
 @app.post("/api/sheet-data", response_model=dict)
-async def receive_sheet_data(payload: SheetData):
+async def receive_sheet_data(payload: SheetData, token: str = Depends(validate_token)):
     """
     Endpoint para recibir datos del Google Sheet.
     Guarda los datos en caché en memoria.
@@ -68,7 +87,7 @@ async def receive_sheet_data(payload: SheetData):
 
 # Endpoint para obtener todos los datos del cache
 @app.get("/api/sheet-data", response_model=CacheResponse)
-async def get_cached_data():
+async def get_cached_data(token: str = Depends(validate_token)):
     """
     Obtiene todos los datos almacenados en caché.
     """
@@ -80,7 +99,7 @@ async def get_cached_data():
 
 # Endpoint para limpiar el cache
 @app.delete("/api/sheet-data")
-async def clear_cache():
+async def clear_cache(token: str = Depends(validate_token)):
     """
     Limpia todos los datos del caché.
     """
@@ -118,6 +137,22 @@ async def health_check():
         "service": "Google Sheets API"
     }
 
+# Endpoint para obtener información del token (solo para desarrollo)
+@app.get("/api/token-info")
+async def get_token_info():
+    """
+    Obtiene información sobre el token de autenticación.
+    Solo para desarrollo - NO usar en producción.
+    """
+    return {
+        "token": API_TOKEN,
+        "message": "Usa este token en el header: Authorization: Bearer " + API_TOKEN,
+        "google_apps_script_config": {
+            "API_TOKEN": API_TOKEN,
+            "AUTH_TYPE": "Bearer"
+        }
+    }
+
 # Endpoint raíz
 @app.get("/")
 async def root():
@@ -125,13 +160,16 @@ async def root():
     Endpoint raíz con información básica de la API.
     """
     return {
-        "message": "Google Sheets API",
+        "message": "Google Sheets API con Autenticación",
         "version": "1.0.0",
+        "authentication": "Bearer Token requerido para endpoints protegidos",
+        "token_info": "GET /api/token-info para obtener el token de desarrollo",
         "endpoints": {
-            "POST /api/sheet-data": "Recibir datos del Google Sheet",
-            "GET /api/sheet-data": "Obtener datos del caché",
-            "DELETE /api/sheet-data": "Limpiar caché",
+            "POST /api/sheet-data": "Recibir datos del Google Sheet (requiere auth)",
+            "GET /api/sheet-data": "Obtener datos del caché (requiere auth)",
+            "DELETE /api/sheet-data": "Limpiar caché (requiere auth)",
             "GET /api/stats": "Estadísticas del caché",
+            "GET /api/token-info": "Información del token (solo desarrollo)",
             "GET /health": "Estado de la API"
         }
     }
